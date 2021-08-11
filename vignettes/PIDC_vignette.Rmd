@@ -1,0 +1,128 @@
+---
+title: "PIDC_vignette"
+output: rmarkdown::html_vignette
+
+---
+
+```{r}
+library(PIDC)
+
+exp_dat <- readRDS("D:/HSC_Autophagy/Markdown/3.scATFR/ext_data/Nkx2-1_KO/exp_data/Nkx2_1_KO_epithelial_cell.rds")
+exp_mat <- as.matrix(exp_dat@assays$RNA@counts)
+PIDC_res <- PIDC(expMat = exp_mat, exp_percent = 0.01,ncores = 6, logNormalized = FALSE)
+
+```
+
+
+
+#### 2. for server
+```{r}
+library(PIDC)
+
+exp_data <- readRDS("/media/hobart/s4T2/tpw/4.PIDC/ext_data/Nkx2_1_KO_epithelial_cell.rds")
+exp_mat <- as.matrix(exp_data@assays$RNA@counts)
+PIDC_res <- PIDC(expMat = exp_mat, exp_percent = 0.05,ncores = 30, logNormalized = FALSE)
+
+
+exp_mat <- readRDS("/media/hobart/s4T2/tpw/4.PIDC/ext_data/Batf3_KO_cell_counts.rds")
+PIDC_res <- PIDC(expMat = exp_mat, exp_percent = 0.05,ncores = 30, logNormalized = FALSE)
+saveRDS(PIDC_res,"/media/hobart/s4T2/tpw/4.PIDC/GRNs/Batf3_PIDC_GRN.rds")
+
+```
+
+#### 3. test package
+
+```{r}
+exp_dat <- readRDS("D:/HSC_Autophagy/Markdown/3.scATFR/ext_data/Nkx2-1_KO/exp_data/old_files/Nkx2_1_KO_sce_epi_cell.rds")
+exp_mat <- assay(exp_dat,1)
+exp_mat <- exp_mat[apply(exp_mat,1,function(x){length(x[which(x>0)])>1}),]
+gene_symbols <- row.names(exp_mat)
+#system.time(gene_symbol_comba <- tibble(t(combn(x = gene_symbols, m = 2))))
+#colnames(gene_symbol_comba) <- c("regulator","target")
+
+sce <- SingleCellExperiment(list(counts=exp_mat[1:100,]))
+sce_PIDC <- PIDC(x = sce)
+
+seu <- Seurat::CreateSeuratObject(counts =exp_mat[1:1000,])
+seu_PIDC <- PIDC(x = seu)
+
+
+
+exp_mat <- log2(exp_mat+1)
+expMat <- as.list(as.data.frame(t(exp_mat)))
+discret_list <- pbapply::pblapply(X=expMat,FUN = .discretizeGene)
+Xi <- discret_list
+Z <- Xi[1]
+system.time(p_XiZ <- purrr::map2(.x = Xi, .y = Z, .f = .freqTable))
+system.time(p_Xi <- purrr::map(.x = p_XiZ,.f = rowSums))
+system.time(p_Z <- purrr::map(.x = p_XiZ,.f = colSums))
+system.time(I_XiZ1 <- purrr::map(.x = p_XiZ, .f = .MI))
+system.time(I_XiZ <- purrr::pmap(.l=list(freqs=p_XiZ, p_i=p_Xi, p_z=p_Z), .f = .MI2))
+
+.MI2 <- function(freqs, p_i, p_z, unit = c("log", "log2", "log10")){
+  if(length(dimnames(freqs))!=2) stop("The dims of freqs must be 2!")
+  unit <- match.arg(unit)
+  MI <- .H(p_i, unit = unit) + .H(p_z, unit = unit) - .H(freqs, unit = unit)
+  MI
+}
+
+
+system.time(Ispec_XiZ <- purrr::map(.x = p_XiZ, .f = .specific.information))
+system.time(Ispec_XiZ <- purrr::pmap(.l=list(p_iz=p_XiZ, p_i=p_Xi, p_z=p_Z), .f = specific.information))
+
+
+specific.information <- function(p_iz, p_i, p_z, unit = c("log", "log2", "log10")){
+  unit <- match.arg(unit)
+  p_i_z <- t(t(p_iz)/p_z)  ##p(i|z)
+  p_z_i <- t(p_iz/p_i) ##p(z|i)
+  tmp <- t((log(1/p_z)) - (log(1/p_z_i))) * p_i_z
+  if (unit == "log2")  tmp <- t((log(1/p_z, 2))  - (log(1/p_z_i, 2))) * p_i_z  # change from log to log2 scale
+  if (unit == "log10") tmp <- t((log(1/p_z, 10)) - (log(1/p_z_i, 10))) * p_i_z # change from log to log10 scale
+  specific.information <- colSums(tmp, na.rm = TRUE)
+  return(specific.information)
+}
+
+
+gene_idx <- 1:length(discret_list)
+names(gene_idx) <- names(discret_list)
+gene_idx_list <- list(gene_idx)
+gene_idx_list_two <- purrr::cross2(.x = unname(gene_idx),.y = unname(gene_idx))
+
+mm_TFs <- intersect(TF_Symbols$mouse,names(discret_list))
+system.time(PUC_1 <- .getPUC(regulator = names(discret_list), target = names(discret_list)[1],discret_list = discret_list))
+
+system.time(PUC_2 <- .getPUC2(regulator = names(discret_list), target = names(discret_list)[1],discret_list = discret_list))
+
+
+target <- names(discret_list)[1:5]
+system.time(PUC_3 <- purrr::map(.x = target,.f = .getPUC2, discret_list = discret_list))
+
+
+
+
+
+
+
+```
+
+
+```{r}
+.uxy_per_target <- function(X, Z, Yi){
+  if(!is.list(Yi)) stop("The Yi must be a list!")
+  p_XZ <- .freqTable(x = X, y = Z)
+  p_Z <- colSums(p_XZ)
+  I_XZ <- .MI(freqs = p_XZ )
+  SpeX <- .specific.information(p_iz = p_XZ)
+  SpeY <-  purrr::map2_dfc(.x = Yi,.y = Z,.f = function(y,z){
+    .specific.information(p_iz = .freqTable(x = y, y = z))})
+  n_genes <- ncol(SpeY)
+  SpeX <- as.list(SpeX)
+  redun <- purrr::map2_dbl(.x = SpeY, .y = SpeX,.f = function(x, y){
+    less_x <- x[which(x<y)]
+    sum(less_x,rep(y,length(x)-length(less_x)-1))
+  })
+  (n_genes-1)-sum(redun*p_Z)/I_XZ
+}
+```
+
+
