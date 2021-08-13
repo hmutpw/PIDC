@@ -27,6 +27,3 @@ PIDC_net <- matToNet(mat=PIDC_res)
 ```
 
 Here, we use different methods to remove weakest edges and keep the strong connected edges for further analysis, for example, transcription factor regulon activity analysis usinng **[scATFR](https://github.com/hmutpw/scATFR)**.  
-
-
-
