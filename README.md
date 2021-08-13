@@ -11,6 +11,8 @@ library(PIDC)
 
 #### 2. Running PIDC with test data
 
+The input matrix of PIDC should be non-negative raw count, UMI, TPM or log-scaled expressed values. Rows represent for genes and columns for samples (or cells).
+
 ```R
 data(expMat)
 PIDC_res <- PIDC(expMat)
@@ -25,3 +27,6 @@ PIDC_net <- matToNet(mat=PIDC_res)
 ```
 
 Here, we use different methods to remove weakest edges and keep the strong connected edges for further analysis, for example, transcription factor regulon activity analysis usinng **[scATFR](https://github.com/hmutpw/scATFR)**.  
+
+
+
