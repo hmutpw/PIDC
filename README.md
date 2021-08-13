@@ -18,7 +18,7 @@ data(expMat)
 PIDC_res <- PIDC(expMat)
 ```
 
-The running time heavily depend on the number of regulators and targets, for genes over 5000,  we strongly suggest you to use multi-cores computers. Meanwhile, we suggest you do not set the regulators and targets which may perform better since the PIDC calculating the regulatory relationships between every triple gene pairs.
+The running time heavily depend on the number of genes in expression matrix, for genes over 5,000,  we strongly suggest you to use multi-core computers. Meanwhile, we recommend users **NOT** to set  *regulators* and *targets* to get better results, because the PIDC will calculate weights based on  triple gene pairs.
 
 #### 3. Generating regulatory networks
 
