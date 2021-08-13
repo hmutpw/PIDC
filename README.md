@@ -1,5 +1,5 @@
-# Inferring Gene Regulatory Network (GRN) using partial information decomposition and context (PIDC) method
-
+# PIDC
+Inferring Gene Regulatory Network (GRN) using partial information decomposition and context (PIDC) method
 #### 1. Install PIDC
 
 ```r
