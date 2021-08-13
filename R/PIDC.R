@@ -98,8 +98,7 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
 #'
 #' Inferring gene regulatory network using weighted square matrix from PIDC output.
 #'
-#'
-#' @param mat A square matrix whose element is positive values.
+#' @param weightMat A square matrix whose element is positive values.
 #' @param methods The name of the network inference algorithm. Default: aracne.
 #' @param return_regulons Whether to return a regulon list? Default: FALSE
 #' @param withWeight The regulons is wight?
@@ -107,19 +106,21 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
 #' @return A data.frame or a list with regulatory networks.
 #' @importFrom minet aracne clr mrnet mrnetb
 #' @importFrom reshape2 melt
+#' @importFrom stats sd ks.test rnorm qnorm density dnorm
+#' @importFrom utils installed.packages capture.output
 #'
 #' @export
 #'
 #' @examples
 #' data(expMat)
 #' PIDC_res <- PIDC(expMat)
-#' PIDC_net <- matToNet(mat=PIDC_res)
-matToNet <- function(mat,
+#' PIDC_net <- matToNet(PIDC_res)
+matToNet <- function(weightMat,
                      methods = c("aracne", "clr", "mrnet", "mrnetb"),
                      return_regulons=FALSE,
                      withWeight=FALSE){
   methods <- match.arg(methods)
-  mat <- as.matrix(mat)
+  mat <- as.matrix(weightMat)
   if(nrow(mat)!=ncol(mat)) stop("The input matrix must be square matrix!")
   if(min(mat)<0) stop("The input matrix can not have negative values!")
 
@@ -155,9 +156,6 @@ matToNet <- function(mat,
   }
   out_res
 }
-
-
-
 
 ######
 #---1. check input arguments
@@ -365,7 +363,7 @@ matToNet <- function(mat,
 ######
 
 #---calculate the cutoff of score using method from AUCell package with some modification
-.getWeightThreshold <- function(df, plotHist=FALSE, smallestPopPercent=.1,
+.getWeightThreshold <- function(df, smallestPopPercent=.1,
                                 densAdjust=2, thrP=0.01, nBreaks=100){
   #---progress bar
   if(length(unique(df[["regulator"]]))!=1) stop("Only support one regulator input!")
@@ -475,17 +473,7 @@ matToNet <- function(mat,
     {
       if(sum(auc==0)<(nCells*notPopPercent*.5))
         skipGlobal <- FALSE    # only if not too many zeroes??
-      # qpois(1-(thrP/nCells), 1, log = FALSE)
-      # plot(sort(rpois(auc, lambda=var(auc)), decreasing=TRUE))
-
-      # commented V6 why was it here??
-      # qPop <- quantile(auc, 1-smallestPopPercent)
-      # if(sum(auc<qPop) >0)
-      #   distrs[["k2"]] <- list(mu=c(mean(auc[auc<qPop]), NA),
-      #                          sigma=c(sd(auc[auc<qPop]), NA),
-      #                          lambda=c(1,NA), x=auc)
     }
-    # if(!skipGlobal) print(gSetName) Warning?
 
     if(!is.null(distrs[["k2"]]))
     {
@@ -578,113 +566,7 @@ matToNet <- function(mat,
 
   if("minimumDens" %in% names(aucThrs))
     aucThr <- aucThrs["minimumDens"]
-  if(length(aucThr)==0)
-    aucThr <-  aucThrs[which.max(aucThrs)]
-
-  if(plotHist)
-  {
-    histInfo <- AUCell_plotHist(aucRow,
-                                aucThr=aucThr,
-                                nBreaks=nBreaks)
-    histMax <- max(histInfo[[gSetName]]$counts)
-
-    # Plot density
-    densCurve$y <- densCurve$y*(histMax/max(densCurve$y))
-    thisLwd <- ifelse(
-      (aucThrs["minimumDens"]==aucThr) &&
-        (!is.null(aucThr) && !is.null(aucThrs["minimumDens"])),
-      3,
-      1)
-    lines(densCurve, lty=1, lwd=thisLwd, col="blue")
-    if(!is.null(minimumDens))
-      points(densCurve$x[minimumDens], densCurve$y[minimumDens],
-             pch=16, col="darkblue")
-
-    ### Plot distributions
-    scalFact <- 1
-    # if(!skipGlobal)
-    # {
-    aucDistr <- dnorm(distrs[["Global_k1"]][["x"]],
-                      mean=distrs[["Global_k1"]][["mu"]][1],
-                      sd=distrs[["Global_k1"]][["sigma"]][1])
-    scalFact <- (histMax/max(aucDistr))*.95
-
-    thisLwd <- ifelse(aucThrs["Global_k1"]==aucThr, 3, 1)
-    lines(distrs[["Global_k1"]][["x"]],
-          scalFact * aucDistr,
-          col="darkgrey", lwd=thisLwd, lty=2)
-
-    if(!is.null(distrs[["k2"]]))
-    {
-      aucDistr <- dnorm(distrs[["k2"]][["x"]],
-                        mean=distrs[["k2"]][["mu"]][k2_L],
-                        sd=distrs[["k2"]][["sigma"]][k2_L])
-      scalFact <- (histMax/max(aucDistr))*.95
-
-
-      thisLwd <- ifelse(aucThrs["k2"]==aucThr, 3, 1)
-      lines(distrs[["k2"]][["x"]],
-            scalFact * aucDistr,
-            col="red", lwd=thisLwd, lty=2)
-
-      rect(distrs[["k2"]][["mu"]][k2_L]-distrs[["k2"]][["sigma"]][k2_L],
-           histMax-(histMax*.02),
-           distrs[["k2"]][["mu"]][k2_L]+distrs[["k2"]][["sigma"]][k2_L],
-           histMax, col="#70000030", border="#00009000")
-    }
-
-    # print(aucThrs)
-    if((!is.null(distrs[["k3"]])) && ("R_k3" %in% names(aucThrs)))
-    {
-      k3_L <- which.min(distrs[["k3"]][["mu"]]) # (index position not constant)
-
-      aucDistr2 <- dnorm(distrs[["k3"]][["x"]],
-                         mean=distrs[["k3"]][["mu"]][k3_R],
-                         sd=distrs[["k3"]][["sigma"]][k3_R])
-      scalFact2 <- scalFact *
-        (distrs[["k3"]][["lambda"]][k3_R]/distrs[["k3"]][["lambda"]][k3_L])
-
-      thisLwd <- ifelse(aucThrs["k3"]==aucThr, 3, 1)
-      lines(distrs[["k3"]][["x"]],
-            scalFact2*aucDistr2,
-            col="magenta", lwd=thisLwd, lty=2)
-
-      rect(distrs[["k3"]][["mu"]][k3_R]-distrs[["k3"]][["sigma"]][k3_R],
-           histMax-(histMax*.02),
-           distrs[["k3"]][["mu"]][k3_R]+distrs[["k3"]][["sigma"]][k3_R],
-           histMax, col="#80808030", border="#80808030")
-    }
-
-    ## Add threshold lines
-    aucThrs <- aucThrs[!is.na(aucThrs)]
-    if(length(aucThrs)>0)
-    {
-      pars <- list()
-      pars[["Global_k1"]] <- c(col1="#909090", col2="black", pos=.9)
-      pars[["L_k2"]] <- c(col1="red", col2="darkred", pos=.8)
-      # pars[["Max"]] <- c(col1="grey", col2="black", pos=.4)
-      pars[["R_k3"]] <- c(col1="magenta", col2="magenta", pos=.6)
-      pars[["minimumDens"]] <- c(col1="blue", col2="darkblue", pos=.4)
-      pars[["tenPercentOfMax"]] <- c(col1="darkgreen", col2="darkgreen", pos=.9)
-      pars[["outlierOfGlobal"]] <- c(col1="darkgreen", col2="darkgreen", pos=.9)
-
-      for(thr in names(aucThrs))
-      {
-        thisLwd <- ifelse(aucThrs[thr]==aucThr, 5, 2)
-        thisLty <- ifelse(aucThrs[thr]==aucThr, 1, 3)
-
-        abline(v=aucThrs[thr], col=pars[[thr]][1], lwd=thisLwd, lty=thisLty)
-        xPos <- aucThrs[thr]*1.01
-        if(aucThrs[thr] > (max(auc)*.8))
-          xPos <- 0
-        if(aucThrs[thr]==aucThr)
-          text(xPos, histMax*as.numeric(pars[[thr]][3]),
-               pos=4, col=pars[[thr]][2], cex=.8,
-               paste("AUC > ", signif(aucThrs[thr],2),
-                     "\n(",sum(auc>aucThrs[thr])," cells)", sep=""))
-      }
-    }
-  }
+  if(length(aucThr)==0) aucThr <-  aucThrs[which.max(aucThrs)]
   df[df$weight>=aucThr,]
 }
 
