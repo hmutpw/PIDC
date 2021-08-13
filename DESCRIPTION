@@ -13,7 +13,7 @@ Suggests: knitr, rmarkdown, testthat (>= 3.0.0), minet, reshape2
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 Imports: methods, utils, stats
-Depends: R (>= 2.10), purrr, pbapply, parallel 
+Depends: R (>= 2.10), purrr, pbapply, parallel, minet, reshape2
 Config/testthat/edition: 3
 NeedsCompilation: no
 Packaged: 2021-08-11 14:12:43 UTC;
