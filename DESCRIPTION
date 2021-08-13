@@ -2,19 +2,18 @@ Package: PIDC
 Type: Package
 Title: Infering Gene Regulatory Network (GRN) using partial information
         decomposition and context (PIDC) method
-Version: 0.3.1
+Version: 0.3.4
 Author: Puwen Tan
 Maintainer: Puwen Tan <tpw1993@i.smu.edu.cn>
 Description: Inferring Gene Regulatory Network (GRN) using partial information decomposition and context (PIDC) method
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-Suggests: knitr, rmarkdown, testthat (>= 3.0.0), SingleCellExperiment,
-        Seurat, SummarizedExperiment
+Suggests: knitr, rmarkdown, testthat (>= 3.0.0), minet, reshape2
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 Imports: methods, utils, stats
-Depends: R (>= 2.10), purrr, pbapply, parallel, SummarizedExperiment
+Depends: R (>= 2.10), purrr, pbapply, parallel 
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2021-08-11 14:12:43 UTC; smutpw
+Packaged: 2021-08-11 14:12:43 UTC;
