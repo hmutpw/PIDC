@@ -113,7 +113,7 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
 #' @examples
 #' data(expMat)
 #' PIDC_res <- PIDC(expMat)
-#' net <- matToNet(mat=PIDC_res)
+#' PIDC_net <- matToNet(mat=PIDC_res)
 #'
 matToNet <- function(mat,
                      methods = c("aracne", "clr", "mrnet", "mrnetb"),
@@ -145,13 +145,14 @@ matToNet <- function(mat,
         targets <- x[order(x$weight,decreasing = TRUE),][["weight"]]
         names(targets) <- x$target
       }else{
-        targets <- x[order(x$weight,decreasing = TRUE),][["target"]]
+        targets <- as.character(x[order(x$weight,decreasing = TRUE),][["target"]])
       }
       targets
     },withWeight=withWeight)
     return(out_res)
   }else{
     out_res <- do.call(rbind,out_flter_list)
+    row.names(out_res) <- NULL
   }
   out_res
 }
