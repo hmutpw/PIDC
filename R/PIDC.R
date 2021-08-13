@@ -1,5 +1,3 @@
-setGeneric("PIDC", function(x, ...) standardGeneric("PIDC"))
-
 #' Inferring Gene Regulatory Network (GRN) using partial information decomposition and context (PIDC) method
 #'
 #' The PIDC package implements the method in paper
@@ -7,92 +5,6 @@ setGeneric("PIDC", function(x, ...) standardGeneric("PIDC"))
 #' with few modifications. Besides, The code used for calculating the \code{Multivariate
 #' Information} (MI) and \code{specific.information}, discretizing gene expression data
 #' were adopted from package \code{\link{Informeasure}}.
-#'
-#' @param x A \code{matrix} or a \code{SingleCellExperiment} or \code{Seurat} object
-#' storing the gene expression data. Rows corresponding to features (eg. gene symbols)
-#' and columns corresponding to cells. Raw read counts, UMIs, TPMs or logNormalized
-#' counts were supported.
-#' @param regulators The regulator genes used for GRN inferring (eg, transcription
-#' factors). At least two regulators required. Default: NULL, using all the genes
-#' in gene expression matrix.
-#' @param targets The target genes used for GRN inferring. Default: NULL, using
-#' all the genes in gene expression matrix.
-#' @param logNormalized Whether the input have been logNormalized?
-#' @param ncores Number of cores used for parallel calculation. The running time
-#' heavily depend on the number of regulators and targets, for genes over 5000,
-#' we strongly suggest you to use multi-cores. Default: 1.
-#' @param verbose Whether to print message while running. Default: TRUE.
-#'
-#' @return A matrix with weighted value between regulators and targets.
-#' @importFrom SummarizedExperiment assays assay
-#' @importFrom purrr map map2 pmap transpose
-#' @importFrom parallel makeCluster clusterExport clusterEvalQ stopCluster
-#' @importFrom pbapply pbapply pblapply
-#' @importFrom methods as is
-#' @importFrom stats ecdf
-#'
-#' @export
-#'
-#' @examples
-#' data(expMat)
-#' PIDC_res <- PIDC(x = expMat)
-#' head(PIDC_res)
-#'
-#' @rdname PIDC
-setMethod("PIDC", "matrix", function(x,
-                                     regulators=NULL,
-                                     targets=NULL,
-                                     logNormalized=FALSE,
-                                     ncores=1,
-                                     verbose = interactive()){
-  run_PIDC(expMat = x,
-           regulators=regulators,
-           targets=targets,
-           logNormalized=logNormalized,
-           ncores=ncores,
-           verbose=verbose)
-})
-
-#' @rdname PIDC
-#' @export
-setMethod("PIDC", "SingleCellExperiment", function(x,
-                                                   regulators=NULL,
-                                                   targets=NULL,
-                                                   logNormalized=FALSE,
-                                                   ncores=1,
-                                                   verbose = interactive()){
-  if("logcounts" %in% SummarizedExperiment::assayNames(x = x)){
-    exp_mat <- SummarizedExperiment::assay(x = x, i = "logcounts")
-    logNormalized <- TRUE
-  }else{
-    exp_mat <- SummarizedExperiment::assay(x = x)
-  }
-  run_PIDC(expMat = exp_mat,
-           regulators=regulators,
-           targets=targets,
-           logNormalized=logNormalized,
-           ncores=ncores,
-           verbose=verbose)
-  })
-
-#' @rdname PIDC
-#' @export
-setMethod("PIDC", "Seurat", function(x,
-                                     regulators=NULL,
-                                     targets=NULL,
-                                     logNormalized=FALSE,
-                                     ncores=1,
-                                     verbose = interactive()){
-  exp_mat <- as.matrix(x@assays$RNA@counts)
-  run_PIDC(expMat = exp_mat,
-           regulators=regulators,
-           targets=targets,
-           logNormalized=logNormalized,
-           ncores=ncores,
-           verbose=verbose)
-})
-
-#' Inferring Gene Regulatory Network (GRN) using partial information decomposition and context (PIDC) method
 #'
 #' @param expMat A \code{matrix} storing the gene expression data. Rows corresponding
 #' to features (eg. gene symbols) and columns corresponding to cells. Raw read counts,
@@ -106,9 +18,10 @@ setMethod("PIDC", "Seurat", function(x,
 #' @param ncores Number of cores used for parallel calculation. The running time
 #' heavily depend on the number of regulators and targets, for genes over 5000,
 #' we strongly suggest you to use multi-cores. Default: 1.
+#' @param diag Numeric. The weight in the diagonal of output square matrix. Default: 1.
 #' @param verbose Whether to print message while running. Default: TRUE.
 #'
-#' @return A matrix with weighted value between regulatro and targets.
+#' @return A matrix with weighted value between regulators and targets.
 #'
 #' @importFrom purrr map map2 pmap transpose
 #' @importFrom parallel makeCluster clusterExport clusterEvalQ stopCluster
@@ -124,11 +37,12 @@ setMethod("PIDC", "Seurat", function(x,
 #'
 #'
 #'
-run_PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
-                     ncores=1, verbose = interactive()){
+PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
+                 ncores=1, diag=c("auto","zero","one"), verbose = interactive()){
   if(verbose) message("[1] Filtering and Normalizing data...")
   .checkPIDCArgs(expMat=expMat, regulators=regulators, targets=targets,
                  logNormalized=logNormalized, ncores=ncores)
+  diag <- match.arg(diag)
   #---check expMat
   expMat <- as.matrix(expMat)
   if(!logNormalized){
@@ -169,8 +83,81 @@ run_PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
   #3. Summaring Uxy and calculating the weight matrix
   if(verbose) message("[4] Summaring Uxy and calculating the weight matrix...")
   out_res <- .FUxy(Uxy_mat = PUC_mat)
+  if(diag=="auto"){
+    return(out_res)
+  }else if(diag=="zero"){
+    diag(out_res) <- 0
+  }else if(diag=="one"){
+    diag(out_res) <- 1
+  }
   out_res
 }
+
+
+#' Get regulatory network with PIDC matrix
+#'
+#' Inferring gene regulatory network using weighted square matrix from PIDC output.
+#'
+#'
+#' @param mat A square matrix whose element is positive values.
+#' @param methods The name of the network inference algorithm. Default: aracne.
+#' @param return_regulons Whether to return a regulon list? Default: FALSE
+#' @param withWeight The regulons is wight?
+#'
+#' @return A data.frame or a list with regulatory networks.
+#' @importFrom minet aracne clr mrnet mrnetb
+#' @importFrom reshape2 melt
+#'
+#' @export
+#'
+#' @examples
+#' data(expMat)
+#' PIDC_res <- PIDC(expMat)
+#' net <- matToNet(mat=PIDC_res)
+#'
+matToNet <- function(mat,
+                     methods = c("aracne", "clr", "mrnet", "mrnetb"),
+                     return_regulons=FALSE,
+                     withWeight=FALSE){
+  methods <- match.arg(methods)
+  mat <- as.matrix(mat)
+  if(nrow(mat)!=ncol(mat)) stop("The input matrix must be square matrix!")
+  if(min(mat)<0) stop("The input matrix can not have negative values!")
+
+
+  if(methods=="aracne"){
+    net <- minet::aracne(mat)
+  }else if(methods=="clr"){
+    net <- minet::clr(mat)
+  }else if(methods=="mrnet"){
+    net <- minet::mrnet(mat)
+  }else if(methods=="mrnetb"){
+    net <- minet::mrnetb(mat)
+  }
+  out_tab <- reshape2::melt(data = net)
+  colnames(out_tab) <- c("regulator","target","weight")
+  out_list <- split(x = out_tab, f = out_tab$regulator)
+  out_flter_list <- lapply(X = out_list, FUN = .getWeightThreshold)
+  names(out_flter_list) <- names(out_list)
+  if(return_regulons){
+    out_res <- lapply(out_flter_list,function(x, withWeight=FALSE){
+      if(withWeight){
+        targets <- x[order(x$weight,decreasing = TRUE),][["weight"]]
+        names(targets) <- x$target
+      }else{
+        targets <- x[order(x$weight,decreasing = TRUE),][["target"]]
+      }
+      targets
+    },withWeight=withWeight)
+    return(out_res)
+  }else{
+    out_res <- do.call(rbind,out_flter_list)
+  }
+  out_res
+}
+
+
+
 
 ######
 #---1. check input arguments
@@ -372,3 +359,335 @@ run_PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
   F_xy <- (F_x+F_y)*0.5
   return(F_xy)
 }
+
+######
+#---get Weight Threshold
+######
+
+#---calculate the cutoff of score using method from AUCell package with some modification
+.getWeightThreshold <- function(df, plotHist=FALSE, smallestPopPercent=.1,
+                                densAdjust=2, thrP=0.01, nBreaks=100){
+  #---progress bar
+  if(length(unique(df[["regulator"]]))!=1) stop("Only support one regulator input!")
+  auc <- df[["weight"]]
+  names(auc) <- df[["target"]]
+  gSetName <- unique(df[["regulator"]])
+
+  nCells <- length(auc)
+  skipGlobal <- TRUE
+  skipRed <- FALSE
+  skipSmallDens <- FALSE
+  commentMsg <- ""
+  aucThrs <- c()
+
+  notPopPercent <- 1 - smallestPopPercent
+  if(sum(auc==0) > (nCells*notPopPercent))
+  {
+    skipGlobal <- FALSE
+    commentMsg <- paste(commentMsg,
+                        round((sum(auc==0)/nCells)*100),
+                        "% (more than ", notPopPercent,"%) of AUC are zero. ", sep="")
+  }
+
+  meanAUC <- mean(auc)
+  sdAUC <- sd(auc)
+  maybeNormalDistr <- !suppressWarnings(
+    ks.test(auc, rnorm(max(100,length(auc)),mean=meanAUC, sd = sdAUC),
+            alternative = "less")$p.value < .01)
+  if(maybeNormalDistr){
+    commentMsg <- paste0(commentMsg,
+                         "The AUC might follow a normal distribution (random gene-set?). ")
+    skipGlobal <- FALSE
+
+    # aucThrs["outlierOfGlobal"] <- meanAUC + 2*sdAUC
+    aucThrs["outlierOfGlobal"] <- qnorm(1-(thrP/nCells), mean=meanAUC, sd=sdAUC)
+  }
+
+  #V6
+  histogram <- hist(c(0, auc/max(auc)), breaks=100, plot=FALSE)$count
+  if((sum(histogram[1:5]) / sum(histogram)) >= notPopPercent*.75) {
+    skipGlobal <- FALSE
+    skipRed <- TRUE
+    skipSmallDens <- TRUE
+  }
+  if((sum(histogram[1:10]) / sum(histogram)) >= notPopPercent*.50) {
+    skipSmallDens <- TRUE
+    skipGlobal <- FALSE
+    # skipRed <- TRUE ?
+    aucThrs["tenPercentOfMax"] <- max(auc)*.10
+  }
+  # print(skipRed)
+
+  densCurve <- density(auc, adjust=densAdjust, cut=0)
+  maximumsDens <- NULL
+  inflPoints <- diff(sign(diff(densCurve$y)))
+  maximumsDens <- which(inflPoints==-2)
+  globalMax <- maximumsDens[which.max(densCurve$y[maximumsDens])]
+  minimumDens <- which(inflPoints==2)
+  smallMin <- NULL
+  if(!skipSmallDens)
+    smallMin <- data.table::last(minimumDens[which(minimumDens < globalMax)]) #1prev to max
+  minimumDens <- c(smallMin,
+                   minimumDens[which(minimumDens > globalMax)]) # all after maximum
+
+  # Density-based threshold (V4):
+  # First minimum after the biggest maximum   (adjust=2)
+  densTrh <- NULL
+  if(length(minimumDens)>0) # && (!skipMinimumDens))
+  {
+    densTrh <- densCurve$x[min(minimumDens)]
+    # Commented on V6
+    # Only keep if it is a real inflextion point
+    # (i.e. next max at least 5% of the global max)
+    if(length(maximumsDens)>0)
+    {
+      nextMaxs <- maximumsDens[which(densCurve$x[maximumsDens] > densTrh)]
+      if((max(densCurve$y[nextMaxs])/max(densCurve$y))<.05)
+      {
+        densTrh <- NULL
+        # print(gSetName)
+      }
+    }
+  }
+
+  ## TO DO: Check special cases with many zeroes
+  auc <- sort(auc)
+  distrs <- list()
+  distrs[["Global_k1"]] <- list(mu=c(meanAUC, NA), sigma=c(sdAUC, NA), x=auc)
+
+
+  if("mixtools" %in% rownames(installed.packages()))
+  {
+    na <- capture.output(distrs[["k2"]] <-
+                           tryCatch(mixtools::normalmixEM(auc, fast=FALSE, k=2, verb=FALSE),
+                                    # With fast, if there are many zeroes, it fails quite often
+                                    error = function(e) {
+                                      return(NULL)
+                                    }))
+
+    na <- capture.output(distrs[["k3"]] <-
+                           tryCatch(mixtools::normalmixEM(auc, fast=FALSE, k=3, verb=FALSE),
+                                    error = function(e) {
+                                      return(NULL)
+                                    }))
+
+    if(is.null(distrs[["k2"]]) && is.null(distrs[["k3"]]))
+    {
+      if(sum(auc==0)<(nCells*notPopPercent*.5))
+        skipGlobal <- FALSE    # only if not too many zeroes??
+      # qpois(1-(thrP/nCells), 1, log = FALSE)
+      # plot(sort(rpois(auc, lambda=var(auc)), decreasing=TRUE))
+
+      # commented V6 why was it here??
+      # qPop <- quantile(auc, 1-smallestPopPercent)
+      # if(sum(auc<qPop) >0)
+      #   distrs[["k2"]] <- list(mu=c(mean(auc[auc<qPop]), NA),
+      #                          sigma=c(sd(auc[auc<qPop]), NA),
+      #                          lambda=c(1,NA), x=auc)
+    }
+    # if(!skipGlobal) print(gSetName) Warning?
+
+    if(!is.null(distrs[["k2"]]))
+    {
+      compL <- which.min(distrs[["k2"]][["mu"]])
+      compR <- which.max(distrs[["k2"]][["mu"]])
+      ### Check distributions
+      # Second distribution is "taller" than first one
+      height1 <- .4/distrs[["k2"]][["sigma"]][compL]*
+        distrs[["k2"]][["lambda"]][compL]
+      height2 <- .4/distrs[["k2"]][["sigma"]][compR]*
+        distrs[["k2"]][["lambda"]][compR]
+      taller <- height1 < height2
+      # Use global distr:
+      # Mean of the global distr is included within the SD of the first
+      # & Both means are included within the mean+SD of the Global distribution
+      globalInclInFirst <-
+        (distrs[["Global_k1"]]$mu[1] <
+           (distrs[["k2"]][["mu"]][compL]+(1.5*distrs[["k2"]][["sigma"]][compL])))
+      includedInGlobal <-
+        ((distrs[["k2"]][["mu"]][compL] >
+            (distrs[["Global_k1"]]$mu[1]-distrs[["Global_k1"]]$sigma[1])) &&
+           (distrs[["k2"]][["mu"]][compR] <
+              (distrs[["Global_k1"]]$mu[1]+distrs[["Global_k1"]]$sigma[1])))
+      if(taller || (globalInclInFirst && includedInGlobal))
+      {
+        skipGlobal <- FALSE
+
+        if(globalInclInFirst && includedInGlobal)
+          commentMsg <- paste(commentMsg,
+                              "The global distribution overlaps the partial distributions. ")
+        if(taller && !includedInGlobal)
+          commentMsg <- paste(commentMsg, "The right distribution is taller. ")
+      }
+    }
+  }else{
+    warning("Package 'mixtools' is not available to calculate the sub-distributions.")
+  }
+
+  glProb <- 1-(thrP/nCells + smallestPopPercent)   ## CORRECT?!?!
+  aucThrs["Global_k1"] <- qnorm(glProb,# qnorm(1-(thrP/nCells),
+                                mean=distrs[["Global_k1"]][["mu"]][1],
+                                sd=distrs[["Global_k1"]][["sigma"]][1])
+  if(!is.null(distrs[["k2"]]))
+  {
+    k2_L <- which.min(distrs[["k2"]][["mu"]]) # (sometimes the indexes are shifted)
+    aucThrs["L_k2"] <- qnorm(1-(thrP/nCells),
+                             mean=distrs[["k2"]][["mu"]][k2_L],
+                             sd=distrs[["k2"]][["sigma"]][k2_L])
+  }
+
+  if(!is.null(distrs[["k3"]]))
+  {
+    k3_R <- which.max(distrs[["k3"]][["mu"]]) # R: right distribution
+    k3_R_threshold <- qnorm(thrP,
+                            mean=distrs[["k3"]][["mu"]][k3_R],
+                            sd=distrs[["k3"]][["sigma"]][k3_R])
+    if(k3_R_threshold > 0) aucThrs["R_k3"] <- k3_R_threshold
+  }
+
+  if(!is.null(densTrh))
+  {
+    aucThrs["minimumDens"] <- densTrh
+  }
+
+  aucThr <- aucThrs
+  if(skipGlobal)
+    aucThr <- aucThrs[which(!names(aucThrs) %in% "Global_k1")]
+  # TO DO: Decide when to merge with GLOBAL
+
+  if(skipRed)
+    aucThr <- aucThrs[which(!names(aucThrs) %in% "L_k2")]
+  # TO DO: Decide when to merge with GLOBAL
+
+  aucThr <- aucThr[which.max(aucThr)] # to keep name
+  if((length(aucThr)>0) && (names(aucThr) == "minimumDens"))
+  {
+    maximumsDens <- maximumsDens[which(densCurve$y[maximumsDens]>1)]
+    if(length(maximumsDens) > 2)
+    {
+      tmp <- cbind(minimumDens[seq_len(length(maximumsDens)-1)],
+                   maximumsDens[-1])
+      FCs <- densCurve$y[tmp[,2]]/densCurve$y[tmp[,1]]
+      if(any(FCs > 1.5))
+        warning(gSetName,
+                ":\tCheck the AUC histogram. ",
+                "'minimumDens' was selected as the best threshold, ",
+                "but there might be several distributions in the AUC.")
+    }
+  }
+
+  if("minimumDens" %in% names(aucThrs))
+    aucThr <- aucThrs["minimumDens"]
+  if(length(aucThr)==0)
+    aucThr <-  aucThrs[which.max(aucThrs)]
+
+  if(plotHist)
+  {
+    histInfo <- AUCell_plotHist(aucRow,
+                                aucThr=aucThr,
+                                nBreaks=nBreaks)
+    histMax <- max(histInfo[[gSetName]]$counts)
+
+    # Plot density
+    densCurve$y <- densCurve$y*(histMax/max(densCurve$y))
+    thisLwd <- ifelse(
+      (aucThrs["minimumDens"]==aucThr) &&
+        (!is.null(aucThr) && !is.null(aucThrs["minimumDens"])),
+      3,
+      1)
+    lines(densCurve, lty=1, lwd=thisLwd, col="blue")
+    if(!is.null(minimumDens))
+      points(densCurve$x[minimumDens], densCurve$y[minimumDens],
+             pch=16, col="darkblue")
+
+    ### Plot distributions
+    scalFact <- 1
+    # if(!skipGlobal)
+    # {
+    aucDistr <- dnorm(distrs[["Global_k1"]][["x"]],
+                      mean=distrs[["Global_k1"]][["mu"]][1],
+                      sd=distrs[["Global_k1"]][["sigma"]][1])
+    scalFact <- (histMax/max(aucDistr))*.95
+
+    thisLwd <- ifelse(aucThrs["Global_k1"]==aucThr, 3, 1)
+    lines(distrs[["Global_k1"]][["x"]],
+          scalFact * aucDistr,
+          col="darkgrey", lwd=thisLwd, lty=2)
+
+    if(!is.null(distrs[["k2"]]))
+    {
+      aucDistr <- dnorm(distrs[["k2"]][["x"]],
+                        mean=distrs[["k2"]][["mu"]][k2_L],
+                        sd=distrs[["k2"]][["sigma"]][k2_L])
+      scalFact <- (histMax/max(aucDistr))*.95
+
+
+      thisLwd <- ifelse(aucThrs["k2"]==aucThr, 3, 1)
+      lines(distrs[["k2"]][["x"]],
+            scalFact * aucDistr,
+            col="red", lwd=thisLwd, lty=2)
+
+      rect(distrs[["k2"]][["mu"]][k2_L]-distrs[["k2"]][["sigma"]][k2_L],
+           histMax-(histMax*.02),
+           distrs[["k2"]][["mu"]][k2_L]+distrs[["k2"]][["sigma"]][k2_L],
+           histMax, col="#70000030", border="#00009000")
+    }
+
+    # print(aucThrs)
+    if((!is.null(distrs[["k3"]])) && ("R_k3" %in% names(aucThrs)))
+    {
+      k3_L <- which.min(distrs[["k3"]][["mu"]]) # (index position not constant)
+
+      aucDistr2 <- dnorm(distrs[["k3"]][["x"]],
+                         mean=distrs[["k3"]][["mu"]][k3_R],
+                         sd=distrs[["k3"]][["sigma"]][k3_R])
+      scalFact2 <- scalFact *
+        (distrs[["k3"]][["lambda"]][k3_R]/distrs[["k3"]][["lambda"]][k3_L])
+
+      thisLwd <- ifelse(aucThrs["k3"]==aucThr, 3, 1)
+      lines(distrs[["k3"]][["x"]],
+            scalFact2*aucDistr2,
+            col="magenta", lwd=thisLwd, lty=2)
+
+      rect(distrs[["k3"]][["mu"]][k3_R]-distrs[["k3"]][["sigma"]][k3_R],
+           histMax-(histMax*.02),
+           distrs[["k3"]][["mu"]][k3_R]+distrs[["k3"]][["sigma"]][k3_R],
+           histMax, col="#80808030", border="#80808030")
+    }
+
+    ## Add threshold lines
+    aucThrs <- aucThrs[!is.na(aucThrs)]
+    if(length(aucThrs)>0)
+    {
+      pars <- list()
+      pars[["Global_k1"]] <- c(col1="#909090", col2="black", pos=.9)
+      pars[["L_k2"]] <- c(col1="red", col2="darkred", pos=.8)
+      # pars[["Max"]] <- c(col1="grey", col2="black", pos=.4)
+      pars[["R_k3"]] <- c(col1="magenta", col2="magenta", pos=.6)
+      pars[["minimumDens"]] <- c(col1="blue", col2="darkblue", pos=.4)
+      pars[["tenPercentOfMax"]] <- c(col1="darkgreen", col2="darkgreen", pos=.9)
+      pars[["outlierOfGlobal"]] <- c(col1="darkgreen", col2="darkgreen", pos=.9)
+
+      for(thr in names(aucThrs))
+      {
+        thisLwd <- ifelse(aucThrs[thr]==aucThr, 5, 2)
+        thisLty <- ifelse(aucThrs[thr]==aucThr, 1, 3)
+
+        abline(v=aucThrs[thr], col=pars[[thr]][1], lwd=thisLwd, lty=thisLty)
+        xPos <- aucThrs[thr]*1.01
+        if(aucThrs[thr] > (max(auc)*.8))
+          xPos <- 0
+        if(aucThrs[thr]==aucThr)
+          text(xPos, histMax*as.numeric(pars[[thr]][3]),
+               pos=4, col=pars[[thr]][2], cex=.8,
+               paste("AUC > ", signif(aucThrs[thr],2),
+                     "\n(",sum(auc>aucThrs[thr])," cells)", sep=""))
+      }
+    }
+  }
+  df[df$weight>=aucThr,]
+}
+
+
+
+
