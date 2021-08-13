@@ -7,8 +7,8 @@
 #' were adopted from package \code{\link{Informeasure}}.
 #'
 #' @param expMat A \code{matrix} storing the gene expression data. Rows corresponding
-#' to features (eg. gene symbols) and columns corresponding to cells. Raw read counts,
-#' UMIs, TPMs or logNormalized counts were supported.
+#' to features (eg. gene symbols) and columns corresponding to samples (cells).
+#' Raw read counts, UMIs, TPMs or logNormalized counts were supported.
 #' @param regulators The regulator genes used for GRN inferring (eg, transcription
 #' factors). At least two regulators required. Default: NULL, using all the genes
 #' in gene expression matrix.
@@ -114,7 +114,6 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
 #' data(expMat)
 #' PIDC_res <- PIDC(expMat)
 #' PIDC_net <- matToNet(mat=PIDC_res)
-#'
 matToNet <- function(mat,
                      methods = c("aracne", "clr", "mrnet", "mrnetb"),
                      return_regulons=FALSE,
