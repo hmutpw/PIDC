@@ -100,14 +100,15 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
 #'
 #' @param weightMat A square matrix whose element is positive values.
 #' @param methods The name of the network inference algorithm. Default: aracne.
-#' @param return_regulons Whether to return a regulon list? Default: FALSE
-#' @param withWeight The regulons is wight?
+#' @param cutoff Set the cutoff of regulatory networks. Default: NULL
 #'
 #' @return A data.frame or a list with regulatory networks.
 #' @importFrom minet aracne clr mrnet mrnetb
 #' @importFrom reshape2 melt
 #' @importFrom stats sd ks.test rnorm qnorm density dnorm
 #' @importFrom utils installed.packages capture.output
+#' @importFrom parallel makeCluster stopCluster
+#' @importFrom pbapply pblapply
 #'
 #' @export
 #'
@@ -117,14 +118,18 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
 #' PIDC_net <- matToNet(PIDC_res)
 matToNet <- function(weightMat,
                      methods = c("aracne", "clr", "mrnet", "mrnetb"),
-                     return_regulons=FALSE,
-                     withWeight=FALSE){
+                     cutoff = NULL,
+                     ncores=1){
   methods <- match.arg(methods)
   mat <- as.matrix(weightMat)
   if(nrow(mat)!=ncol(mat)) stop("The input matrix must be square matrix!")
   if(min(mat)<0) stop("The input matrix can not have negative values!")
-
-
+  if(!is.null(cutoff)){
+    if(!is.numeric(cutoff) || !(cutoff>=0 && cutoff<=1) || length(cutoff)!=1){
+      stop("The cutoff must be a numeric value between 0 and 1!")
+    }
+  }
+  message("[1] Generating Gene regulatory networks using: ",methods,".")
   if(methods=="aracne"){
     net <- minet::aracne(mat)
   }else if(methods=="clr"){
@@ -136,25 +141,20 @@ matToNet <- function(weightMat,
   }
   out_tab <- reshape2::melt(data = net)
   colnames(out_tab) <- c("regulator","target","weight")
-  out_list <- split(x = out_tab, f = out_tab$regulator)
-  out_flter_list <- lapply(X = out_list, FUN = .getWeightThreshold)
-  names(out_flter_list) <- names(out_list)
-  if(return_regulons){
-    out_res <- lapply(out_flter_list,function(x, withWeight=FALSE){
-      if(withWeight){
-        targets <- x[order(x$weight,decreasing = TRUE),][["weight"]]
-        names(targets) <- x$target
-      }else{
-        targets <- as.character(x[order(x$weight,decreasing = TRUE),][["target"]])
-      }
-      targets
-    },withWeight=withWeight)
-    return(out_res)
-  }else{
+  if(is.null(cutoff)){
+    message("[2] Inferring cutoff by estimateing distribution...")
+    out_list <- split(x = out_tab, f = out_tab$regulator)
+    cl <- parallel::makeCluster(ncores)
+    out_flter_list <- pbapply::pblapply(X = out_list, FUN = .getWeightThreshold, cl=cl)
+    parallel::stopCluster(cl)
+    names(out_flter_list) <- names(out_list)
     out_res <- do.call(rbind,out_flter_list)
-    row.names(out_res) <- NULL
+  }else{
+    out_res <- out_tab[out_tab$weight>cutoff,]
   }
-  out_res
+  row.names(out_res) <- NULL
+  out_res[order(out_res$regulator,out_res$weight,out_res$target,
+                decreasing = c(FALSE,TRUE,FALSE)),]
 }
 
 ######
