@@ -98,9 +98,11 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logNormalized=FALSE,
 #'
 #' Inferring gene regulatory network using weighted square matrix from PIDC output.
 #'
-#' @param weightMat A square matrix whose element is positive values.
+#' @param weightMat A square matrix whose element should be positive values.
 #' @param methods The name of the network inference algorithm. Default: aracne.
-#' @param cutoff Set the cutoff of regulatory networks. Default: NULL
+#' @param cutoff Set the cutoff of regulatory networks. Default: NULL, means
+#' inferring cutoff by itself.
+#' @param ncores Number of cores to use. Default:1.
 #'
 #' @return A data.frame or a list with regulatory networks.
 #' @importFrom minet aracne clr mrnet mrnetb
@@ -238,6 +240,7 @@ matToNet <- function(weightMat,
     y <- unlist(y)
   }
   tab <- table(x,y)
+  dimnames(tab) <- NULL
   if(method=="ML"){
     probs <- tab/sum(tab)
   }else if(method=="Jeffreys"){
