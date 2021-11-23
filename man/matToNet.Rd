@@ -2,23 +2,24 @@
 % Please edit documentation in R/PIDC.R
 \name{matToNet}
 \alias{matToNet}
-\title{Get regulatory network with PIDC matrix}
+\title{Inferring regulatory network with PIDC matrix}
 \usage{
 matToNet(
-  mat,
+  weightMat,
   methods = c("aracne", "clr", "mrnet", "mrnetb"),
-  return_regulons = FALSE,
-  withWeight = FALSE
+  cutoff = NULL,
+  ncores = 1
 )
 }
 \arguments{
-\item{mat}{A square matrix whose element is positive values.}
+\item{weightMat}{A square matrix whose element should be positive values.}
 
 \item{methods}{The name of the network inference algorithm. Default: aracne.}
 
-\item{return_regulons}{Whether to return a regulon list? Default: FALSE}
+\item{cutoff}{Set the cutoff of regulatory networks. Default: NULL, means
+inferring cutoff by itself.}
 
-\item{withWeight}{The regulons is wight?}
+\item{ncores}{Number of cores to use. Default:1.}
 }
 \value{
 A data.frame or a list with regulatory networks.
@@ -29,6 +30,5 @@ Inferring gene regulatory network using weighted square matrix from PIDC output.
 \examples{
 data(expMat)
 PIDC_res <- PIDC(expMat)
-net <- matToNet(mat=PIDC_res)
-
+PIDC_net <- matToNet(PIDC_res)
 }

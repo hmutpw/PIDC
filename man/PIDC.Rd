@@ -10,26 +10,29 @@ PIDC(
   targets = NULL,
   logNormalized = FALSE,
   ncores = 1,
+  diag = c("auto", "zero", "one"),
   verbose = interactive()
 )
 }
 \arguments{
 \item{expMat}{A \code{matrix} storing the gene expression data. Rows corresponding
-to features (eg. gene symbols) and columns corresponding to cells. Raw read counts,
-UMIs, TPMs or logNormalized counts were supported.}
+to features (eg. gene symbols) and columns corresponding to samples (cells).
+Raw read counts, UMIs, TPMs or logNormalized counts were supported.}
 
 \item{regulators}{The regulator genes used for GRN inferring (eg, transcription
 factors). At least two regulators required. Default: NULL, using all the genes
-in gene expression matrix.}
+in gene expression matrix. Default: NULL, all genes.}
 
 \item{targets}{The target genes used for GRN inferring. Default: NULL, using
-all the genes in gene expression matrix.}
+all the genes in gene expression matrix. Default: NULL, all genes.}
 
-\item{logNormalized}{Whether the input have been logNormalized?}
+\item{logNormalized}{Whether the input have been logNormalized? Default: FALSE.}
 
 \item{ncores}{Number of cores used for parallel calculation. The running time
 heavily depend on the number of regulators and targets, for genes over 5000,
 we strongly suggest you to use multi-cores. Default: 1.}
+
+\item{diag}{Numeric. The weight in the diagonal of output square matrix. Default: 1.}
 
 \item{verbose}{Whether to print message while running. Default: TRUE.}
 }
@@ -41,7 +44,7 @@ The PIDC package implements the method in paper
 (\href{https://linkinghub.elsevier.com/retrieve/pii/S2405471217303861}{2017 Chan et al.})
 with few modifications. Besides, The code used for calculating the \code{Multivariate
 Information} (MI) and \code{specific.information}, discretizing gene expression data
-were adopted from package \code{\link{Informeasure}}.
+were  partly adopted from package \code{\link{Informeasure}}.
 }
 \examples{
 data(expMat)

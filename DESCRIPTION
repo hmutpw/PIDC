@@ -2,7 +2,7 @@ Package: PIDC
 Type: Package
 Title: Infering Gene Regulatory Network (GRN) using partial information
         decomposition and context (PIDC) method
-Version: 0.3.6
+Version: 0.3.7
 Author: Puwen Tan
 Maintainer: Puwen Tan <tpw1993@i.smu.edu.cn>
 Description: Inferring Gene Regulatory Network (GRN) using partial information decomposition and context (PIDC) method
