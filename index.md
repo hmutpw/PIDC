@@ -1,37 +1,59 @@
-## Welcome to GitHub Pages
+## Inferring Gene Regulatory Network (GRN) using partial information decomposition and context (PIDC)
 
-You can use the [editor on GitHub](https://github.com/hmutpw/PIDC/edit/gh-pages/index.md) to maintain and preview the content for your website in Markdown files.
+### 1. Installing PIDC from github
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
+The PIDC package is implemented with R and deposited at Github: https://github.com/hmutpw/PIDC. To using the PIDC, you must install the following dependent packages: **purrr**, **parallel**, **pbapply**, **reshape2**, **minet**.
 
-### Markdown
+```{r}
+install.packages("devtools")
+install.packages("purrr")
+install.packages("parallel")
+install.packages("pbapply")
+install.packages("reshape2")
+install.packages("minet")
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-1. Numbered
-2. List
-
-**Bold** and _Italic_ and `Code` text
-
-[Link](url) and ![Image](src)
+devtools::install_github("hmutpw/PIDC")
 ```
 
-For more details see [Basic writing and formatting syntax](https://docs.github.com/en/github/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax).
+### 2. Running PIDC with test data 
 
-### Jekyll Themes
+The input matrix of PIDC should be non-negative values such as raw counts, UMIs, TPMs or FPKMs. Log-scaled expressed value is suggested. Each row of the matrix represent the feature such as gene or isoform, while each column represent cell. Here we use test data with 50 genes and 4488 cells in **PIDC** package.
 
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/hmutpw/PIDC/settings/pages). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
+```{r}
+library(PIDC)
+data(expMat)
+# 1. filtering genes with expression (UMIs >= 1) in at least 10 cells
+expMat <- expMat[apply(expMat,1,function(x){length(x[which(x>=1)])>=10}),]
 
-### Support or Contact
+# 2. Runing PIDC using UMIs without log scaled.
+PIDC_grn <- PIDC(expMat = expMat, logScale = TRUE, ncores = 1)
+```
 
-Having trouble with Pages? Check out our [documentation](https://docs.github.com/categories/github-pages-basics/) or [contact support](https://support.github.com/contact) and we’ll help you sort it out.
+The output of PIDC is a square matrix with weighted between each gene pairs.
+
+```{r}
+PIDC_grn[1:5,1:5]
+```
+
+**Note**:The running time heavily depend on the number of genes in your input matrix, for genes over 5,000, we strongly suggest you to use multi-core computers. Generally, we recommend users **NOT** to set regulators and targets to get accurate results, because the PIDC algorithm calculated weights based on triple gene pairs, absence of regulators or targets will decrease accuracy.
+
+### 3. Generating gene regulons from GRNs
+
+To remove weakest edges from gene regulatory network and keep the strong connected edges for further analysis. We using `aracne` to generate the gene regulons from GRNs. The input of `matToNet` is a square matrix with positive values.
+
+```{r}
+PIDC_net <- matToNet(weightMat = PIDC_grn, methods = "aracne")
+```
+
+The final output is a three-column network with weights:
+
+```{r}
+head(PIDC_net)
+```
+
+### 4. sessionInfo
+
+```{r}
+sessionInfo()
+```
+
