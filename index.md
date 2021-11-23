@@ -2,7 +2,7 @@
 
 ### 1. Installing PIDC from github
 
-The PIDC package is implemented with R and deposited at Github: https://github.com/hmutpw/PIDC. To using the [https://hmutpw.github.io/PIDC/PIDC.nb.html]PIDC, you must install the following dependent packages: **purrr**, **parallel**, **pbapply**, **reshape2**, **minet**.
+The PIDC package is implemented with R and deposited at Github: https://github.com/hmutpw/PIDC. To using the [PIDC](https://hmutpw.github.io/PIDC/PIDC.nb.html), you must install the following dependent packages: **purrr**, **parallel**, **pbapply**, **reshape2**, **minet**.
 
 ```{r}
 install.packages("devtools")
