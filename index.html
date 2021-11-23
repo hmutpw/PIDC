@@ -148,7 +148,7 @@ pre code {
 
 
 
-<script type="text/javascript" src="vignettes_files/MathJax.js"></script><style type="text/css">.MathJax_Hover_Frame {border-radius: .25em; -webkit-border-radius: .25em; -moz-border-radius: .25em; -khtml-border-radius: .25em; box-shadow: 0px 0px 15px #83A; -webkit-box-shadow: 0px 0px 15px #83A; -moz-box-shadow: 0px 0px 15px #83A; -khtml-box-shadow: 0px 0px 15px #83A; border: 1px solid #A6D ! important; display: inline-block; position: absolute}
+<script type="text/javascript" src="index_files/MathJax.js"></script><style type="text/css">.MathJax_Hover_Frame {border-radius: .25em; -webkit-border-radius: .25em; -moz-border-radius: .25em; -khtml-border-radius: .25em; box-shadow: 0px 0px 15px #83A; -webkit-box-shadow: 0px 0px 15px #83A; -moz-box-shadow: 0px 0px 15px #83A; -khtml-box-shadow: 0px 0px 15px #83A; border: 1px solid #A6D ! important; display: inline-block; position: absolute}
 .MathJax_Menu_Button .MathJax_Hover_Arrow {position: absolute; cursor: pointer; display: inline-block; border: 2px solid #AAA; border-radius: 4px; -webkit-border-radius: 4px; -moz-border-radius: 4px; -khtml-border-radius: 4px; font-family: 'Courier New',Courier; font-size: 9px; color: #F0F0F0}
 .MathJax_Menu_Button .MathJax_Hover_Arrow span {display: block; background-color: #AAA; border: 1px solid; border-radius: 3px; line-height: 0; padding: 4px}
 .MathJax_Hover_Arrow:hover {color: white!important; border: 2px solid #CCC!important}
@@ -286,7 +286,7 @@ data(expMat)
 <span class="hljs-comment"># 1. filtering genes with expression (UMIs &gt;= 1) in at least 10 cells</span>
 expMat &lt;- expMat[apply(expMat,<span class="hljs-number">1</span>,<span class="hljs-keyword">function</span>(x){length(x[which(x&gt;=<span class="hljs-number">1</span>)])&gt;=<span class="hljs-number">10</span>}),]
 
-<span class="hljs-comment"># 2. Runing PIDC using UMIs without log scaled.</span>
+<span class="hljs-comment"># 2. Runing PIDC using non-normalized UMIs.</span>
 PIDC_grn &lt;- PIDC(expMat = expMat, logScale = <span class="hljs-literal">TRUE</span>, ncores = <span class="hljs-number">1</span>)</code></pre>
 <p>The output of PIDC is a square matrix with weighted between each gene pairs.</p>
 <pre class="r"><code class="hljs">PIDC_grn[<span class="hljs-number">1</span>:<span class="hljs-number">5</span>,<span class="hljs-number">1</span>:<span class="hljs-number">5</span>]</code></pre>
@@ -305,7 +305,7 @@ regulators or targets will decrease accuracy.</p>
 </div>
 <div id="generating-gene-regulons-from-grns" class="section level3">
 <h3>3. Generating gene regulons from GRNs</h3>
-<p>To remove weakest edges from gene regulatory network and keep the strong connected edges for further analysis. We using <code>aracne</code> to generate the gene regulons from GRNs. The input of <code>matToNet</code> is a square matrix with positive values.</p>
+<p>To remove weakest edges from gene regulatory network and keep the strong connected edges for further analysis. We use <code>aracne</code> to generate the gene regulons from GRNs. The input of <code>matToNet</code> is a square matrix with positive values.</p>
 <pre class="r"><code class="hljs">PIDC_net &lt;- matToNet(weightMat = PIDC_grn, methods = <span class="hljs-string">"aracne"</span>)</code></pre>
 <pre><code class="hljs">## [1] Generating Gene regulatory networks using: aracne.</code></pre>
 <p>The final output is a three-column network with weights:</p>
