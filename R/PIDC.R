@@ -74,9 +74,11 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logScale=FALSE,
   }else{
     cl <- parallel::makeCluster(spec = getOption("mc.cores", ncores),type = "PSOCK")
   }
-  parallel::clusterEvalQ(cl,library(purrr))
-  parallel::clusterEvalQ(cl,library(dplyr))
-  parallel::clusterEvalQ(cl,library(pbapply))
+  parallel::clusterEvalQ(cl = cl,library(purrr))
+  parallel::clusterEvalQ(cl = cl,library(dplyr))
+  parallel::clusterEvalQ(cl = cl,library(pbapply))
+  parallel::clusterExport(cl = cl, varlist = c(".getPUC", ".freqTable", ".puc_per_target", ".specific.information", ".MI", ".H"),
+                          envir = environment())
   PUC_list <- pbapply::pblapply(X = targets, FUN = .getPUC,
                                 regulators = regulators,
                                 discret_list = discret_list,
@@ -346,8 +348,15 @@ matToNet <- function(weightMat,
 ######
 .FUxy <- function(Uxy_mat){
   mat <- as.matrix(Uxy_mat)
-  if(nrow(mat)==ncol(mat)){
+  if(identical(row.names(mat), colnames(mat))){
     mat <- mat + t(mat)
+  }else if(nrow(mat)!=ncol(mat)){
+    overlap_genes <- intersect(row.names(mat), colnames(mat))
+    if(length(overlap_genes)>0){
+      mat[overlap_genes, overlap_genes] <- (mat[overlap_genes, overlap_genes] + t(mat[overlap_genes, overlap_genes]))*0.5
+    }
+  }else{
+    stop("The row names and column names of mat is not identical!")
   }
   F_x <- t(apply(mat,1,function(x){stats::ecdf(x)(x)}))
   colnames(F_x) <- colnames(mat)
