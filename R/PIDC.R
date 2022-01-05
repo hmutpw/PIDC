@@ -74,9 +74,9 @@ PIDC <- function(expMat, regulators=NULL, targets=NULL, logScale=FALSE,
   }else{
     cl <- parallel::makeCluster(spec = getOption("mc.cores", ncores),type = "PSOCK")
   }
-  parallel::clusterEvalQ(cl = cl,library(purrr))
-  parallel::clusterEvalQ(cl = cl,library(dplyr))
-  parallel::clusterEvalQ(cl = cl,library(pbapply))
+  parallel::clusterEvalQ(cl = cl, library(purrr))
+  parallel::clusterEvalQ(cl = cl, library(dplyr))
+  parallel::clusterEvalQ(cl = cl, library(pbapply))
   parallel::clusterExport(cl = cl, varlist = c(".getPUC", ".freqTable", ".puc_per_target", ".specific.information", ".MI", ".H"),
                           envir = environment())
   PUC_list <- pbapply::pblapply(X = targets, FUN = .getPUC,
@@ -238,7 +238,6 @@ matToNet <- function(weightMat,
     y <- unlist(y)
   }
   tab <- table(x,y)
-  dimnames(tab) <- NULL
   if(method=="ML"){
     probs <- tab/sum(tab)
   }else if(method=="Jeffreys"){

@@ -8,7 +8,7 @@ PIDC(
   expMat,
   regulators = NULL,
   targets = NULL,
-  logNormalized = FALSE,
+  logScale = FALSE,
   ncores = 1,
   diag = c("auto", "zero", "one"),
   verbose = interactive()
@@ -26,7 +26,7 @@ in gene expression matrix. Default: NULL, all genes.}
 \item{targets}{The target genes used for GRN inferring. Default: NULL, using
 all the genes in gene expression matrix. Default: NULL, all genes.}
 
-\item{logNormalized}{Whether the input have been logNormalized? Default: FALSE.}
+\item{logScale}{Whether to log-scale the input data? Default: FALSE.}
 
 \item{ncores}{Number of cores used for parallel calculation. The running time
 heavily depend on the number of regulators and targets, for genes over 5000,

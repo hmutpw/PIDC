@@ -2,13 +2,12 @@
 % Please edit documentation in R/PIDC.R
 \name{matToNet}
 \alias{matToNet}
-\title{Inferring regulatory network with PIDC matrix}
+\title{Inferring gene regulons from Gene Regulatory Network}
 \usage{
 matToNet(
   weightMat,
   methods = c("aracne", "clr", "mrnet", "mrnetb"),
-  cutoff = NULL,
-  ncores = 1
+  cutoff = NULL
 )
 }
 \arguments{
@@ -18,14 +17,12 @@ matToNet(
 
 \item{cutoff}{Set the cutoff of regulatory networks. Default: NULL, means
 inferring cutoff by itself.}
-
-\item{ncores}{Number of cores to use. Default:1.}
 }
 \value{
 A data.frame or a list with regulatory networks.
 }
 \description{
-Inferring gene regulatory network using weighted square matrix from PIDC output.
+Inferring gene regulons from gene regulatory network using weighted square matrix from PIDC output.
 }
 \examples{
 data(expMat)
